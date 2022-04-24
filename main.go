@@ -6,11 +6,12 @@ import (
 	"os"
 
 	"github.com/apex/gateway/v2"
+	"github.com/go-chi/chi/v5"
 )
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", tomatoHandler)
+	mux := chi.NewMux()
+	mux.Get("/", tomatoHandler)
 
 	log.Println("It's tomato time! 🍅")
 
