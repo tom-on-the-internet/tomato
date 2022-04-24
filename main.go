@@ -9,19 +9,23 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/", tomatoHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", tomatoHandler)
 
 	log.Println("It's tomato time! 🍅")
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") == "" {
-		log.Fatal(http.ListenAndServe(":3000", nil))
+		log.Fatal(http.ListenAndServe(":3000", mux))
 	} else {
-		log.Fatal(gateway.ListenAndServe(":3000", nil))
+		log.Fatal(gateway.ListenAndServe(":3000", mux))
 	}
 }
 
 func tomatoHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("hit function!")
+
 	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("X-Tom", "Hey Tom")
 
 	msg := `
 		<head>
@@ -41,5 +45,8 @@ func tomatoHandler(w http.ResponseWriter, r *http.Request) {
 		</style>
 `
 
-	w.Write([]byte(msg))
+	_, err := w.Write([]byte(msg))
+	if err != nil {
+		log.Println(err)
+	}
 }
