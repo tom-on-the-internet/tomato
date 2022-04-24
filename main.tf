@@ -130,6 +130,7 @@ resource "aws_apigatewayv2_integration" "tomato" {
   integration_uri    = aws_lambda_function.tomato.invoke_arn
   integration_type   = "AWS_PROXY"
   integration_method = "POST"
+  description        = "This is our {proxy+} integration"
 }
 
 resource "aws_apigatewayv2_route" "tomato" {
