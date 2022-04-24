@@ -18,19 +18,15 @@ func main() {
 	log.Println("It's tomato time! 🍅")
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") == "" {
+		// local
 		log.Fatal(http.ListenAndServe(":3000", mux))
 	} else {
+		// lambda
 		lambda.Start(httpadapter.New(mux).ProxyWithContext)
 	}
 }
 
 func tomatoHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("TOM, HERE IS THE REQUEST:")
-	log.Println(r)
-	log.Println(r.URL)
-	log.Println(r.Method)
-	log.Println(r.Context())
-
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("X-Tom", "Hey Tom")
 
@@ -43,6 +39,7 @@ func tomatoHandler(w http.ResponseWriter, r *http.Request) {
 
 		<h1>Tomato</h1>
 		<p>yay for tomatoes</p>
+	    <a href="/truth">see truth</a>
 
 		<style>
 		body {
@@ -71,6 +68,7 @@ func tomatoTruthHandler(w http.ResponseWriter, r *http.Request) {
 
 		<h1>Tomato Truth</h1>
 		<p>I'm not even that into Tomatoes</p>
+	    <a href="/">home</a>
 
 		<style>
 		body {
