@@ -36,44 +36,44 @@ resource "aws_s3_bucket_acl" "bucket_acl" {
   acl    = "private"
 }
 
-data "archive_file" "tomato" {
+data "archive_file" "main" {
   type = "zip"
 
-  source_file = "${path.module}/tomato"
-  output_path = "${path.module}/tomato.zip"
+  source_file = "${path.module}/${var.project-name}"
+  output_path = "${path.module}/${var.project-name}.zip"
 }
 
-resource "aws_s3_object" "tomato" {
+resource "aws_s3_object" "main" {
   bucket = aws_s3_bucket.lambda_bucket.id
 
-  key    = "tomato.zip"
-  source = data.archive_file.tomato.output_path
+  key    = "${var.project-name}.zip"
+  source = data.archive_file.main.output_path
 
-  etag = filemd5(data.archive_file.tomato.output_path)
+  etag = filemd5(data.archive_file.main.output_path)
 }
 
-resource "aws_lambda_function" "tomato" {
-  function_name = "tomato"
+resource "aws_lambda_function" "main" {
+  function_name = var.project-name
 
   s3_bucket = aws_s3_bucket.lambda_bucket.id
-  s3_key    = aws_s3_object.tomato.key
+  s3_key    = aws_s3_object.main.key
 
   runtime = "go1.x"
-  handler = "tomato"
+  handler = var.project-name
 
-  source_code_hash = data.archive_file.tomato.output_base64sha256
+  source_code_hash = data.archive_file.main.output_base64sha256
 
   role = aws_iam_role.lambda_exec.arn
 }
 
-resource "aws_cloudwatch_log_group" "tomato" {
-  name = "/aws/lambda/${aws_lambda_function.tomato.function_name}"
+resource "aws_cloudwatch_log_group" "main" {
+  name = "/aws/lambda/${aws_lambda_function.main.function_name}"
 
   retention_in_days = 30
 }
 
 resource "aws_iam_role" "lambda_exec" {
-  name = "serverless_lambda"
+  name = "${var.project-name}-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -95,7 +95,7 @@ resource "aws_iam_role_policy_attachment" "lambda_policy" {
 }
 
 resource "aws_apigatewayv2_api" "lambda" {
-  name          = "tomato_gateway"
+  name          = "${var.project-name}-gateway"
   protocol_type = "HTTP"
 }
 
@@ -124,20 +124,20 @@ resource "aws_apigatewayv2_stage" "lambda" {
   }
 }
 
-resource "aws_apigatewayv2_integration" "tomato" {
+resource "aws_apigatewayv2_integration" "main" {
   api_id = aws_apigatewayv2_api.lambda.id
 
-  integration_uri    = aws_lambda_function.tomato.invoke_arn
+  integration_uri    = aws_lambda_function.main.invoke_arn
   integration_type   = "AWS_PROXY"
   integration_method = "POST"
   description        = "This is our {proxy+} integration"
 }
 
-resource "aws_apigatewayv2_route" "tomato" {
+resource "aws_apigatewayv2_route" "main" {
   api_id = aws_apigatewayv2_api.lambda.id
 
   route_key = "ANY /{proxy+}"
-  target    = "integrations/${aws_apigatewayv2_integration.tomato.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
 }
 
 resource "aws_cloudwatch_log_group" "api_gw" {
@@ -149,14 +149,14 @@ resource "aws_cloudwatch_log_group" "api_gw" {
 resource "aws_lambda_permission" "api_gw" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.tomato.function_name
+  function_name = aws_lambda_function.main.function_name
   principal     = "apigateway.amazonaws.com"
 
   source_arn = "${aws_apigatewayv2_api.lambda.execution_arn}/*/*"
 }
 
 resource "aws_acm_certificate" "certificate" {
-  domain_name       = var.domain
+  domain_name       = "${var.project-name}.${var.root-domain}"
   validation_method = "DNS"
 
   lifecycle {
@@ -187,20 +187,19 @@ resource "aws_route53_record" "record" {
 }
 
 
-// This Route53 record will point at our CloudFront distribution.
-resource "aws_route53_record" "www" {
+resource "aws_route53_record" "main" {
   zone_id = data.aws_route53_zone.zone.zone_id
-  name    = var.domain
+  name    = "${var.project-name}.${var.root-domain}"
   type    = "A"
 
   alias {
-    name                   = aws_cloudfront_distribution.tomato.domain_name
-    zone_id                = aws_cloudfront_distribution.tomato.hosted_zone_id
+    name                   = aws_cloudfront_distribution.main.domain_name
+    zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
     evaluate_target_health = false
   }
 }
 
-resource "aws_cloudfront_distribution" "tomato" {
+resource "aws_cloudfront_distribution" "main" {
   origin {
     domain_name = replace(aws_apigatewayv2_stage.lambda.invoke_url, "/^https?://([^/]*).*/", "$1")
     origin_id   = aws_apigatewayv2_stage.lambda.id
@@ -215,7 +214,7 @@ resource "aws_cloudfront_distribution" "tomato" {
 
   enabled = true
 
-  aliases = ["tomato.tomontheinternet.com"]
+  aliases = ["${var.project-name}.${var.root-domain}"]
 
   default_cache_behavior {
     allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]

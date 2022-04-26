@@ -7,6 +7,10 @@ variable "aws_region" {
   default = "us-east-1"
 }
 
-variable "domain" {
-  default = "tomato.tomontheinternet.com"
+variable "root-domain" {
+  default = "tomontheinternet.com"
+}
+
+variable "project-name" {
+  default = "tomato"
 }
