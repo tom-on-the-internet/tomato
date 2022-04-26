@@ -75,8 +75,8 @@ func tomatoTruthHandler(w http.ResponseWriter, r *http.Request) {
 
 		<h1>Tomato Truth</h1>
 		<p>I'm not even that into Tomatoes</p>
-	    <a href="/">home</a>
-	    <a href="/mystery">mystery page</a>
+	    <a href="/">home</a></br>
+	    <a href="/mystery">mystery</a>
 
 		<style>
 		body {
